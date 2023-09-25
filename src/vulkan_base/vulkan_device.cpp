@@ -69,7 +69,7 @@ void VulkanContext::initVulkanInstance(std::vector<const char*> necessaryExtensi
 
 void VulkanContext::selectPhysicalDevice()
 {
-    std::uint32_t deviceCount;
+    std::uint32_t deviceCount = 0;
     if (vkEnumeratePhysicalDevices(m_instace, &deviceCount, nullptr) != VK_SUCCESS)
         spdlog::error("failed to retrieve physical device count.");
 
@@ -78,4 +78,14 @@ void VulkanContext::selectPhysicalDevice()
         spdlog::error("failed to retrieve physical devices.");
 
     spdlog::info("found {} physical device(s)", deviceCount);
+    for (const auto device : physicalDevices) {
+        VkPhysicalDeviceProperties properties = {};
+        vkGetPhysicalDeviceProperties(device, &properties);
+        spdlog::info("found device {}", properties.deviceName);
+    }
+
+    m_physicalDevice = physicalDevices.at(0);
+    vkGetPhysicalDeviceProperties(m_physicalDevice, &m_physicalDeviceProperties);
+
+    spdlog::info("selected {}", m_physicalDeviceProperties.deviceName);
 }

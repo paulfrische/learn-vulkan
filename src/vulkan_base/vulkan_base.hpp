@@ -8,6 +8,7 @@ public:
 
     VkInstance m_instace;
     VkPhysicalDevice m_physicalDevice;
+    VkPhysicalDeviceProperties m_physicalDeviceProperties;
 private:
     void initVulkanInstance(std::vector<const char*> necessaryExtensions);
     void selectPhysicalDevice();
