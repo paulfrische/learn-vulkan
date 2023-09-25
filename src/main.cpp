@@ -42,7 +42,7 @@ int main()
     std::vector<const char*> extensionNames(extensionCount);
     SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, extensionNames.data());
 
-    VulkanContext context(extensionNames);
+    VulkanContext context(extensionNames, std::vector<const char*>(0));
 
     while (handleMessage()) {
         // render with vulkan

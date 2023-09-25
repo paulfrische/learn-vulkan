@@ -7,11 +7,12 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
-VulkanContext::VulkanContext(std::vector<const char*> necessaryExtensions)
+VulkanContext::VulkanContext(std::vector<const char*> instanceExtensions, std::vector<const char*> deviceExtensions)
 {
     spdlog::debug("construct vulkan context");
-    initVulkanInstance(necessaryExtensions);
+    initVulkanInstance(instanceExtensions);
     selectPhysicalDevice();
+    createLogicalDevice(deviceExtensions);
 }
 
 void VulkanContext::initVulkanInstance(std::vector<const char*> necessaryExtensions)
@@ -88,4 +89,60 @@ void VulkanContext::selectPhysicalDevice()
     vkGetPhysicalDeviceProperties(m_physicalDevice, &m_physicalDeviceProperties);
 
     spdlog::info("selected {}", m_physicalDeviceProperties.deviceName);
+}
+
+void VulkanContext::createLogicalDevice(std::vector<const char*> deviceExtensions)
+{
+    // query queues
+    std::uint32_t queueFamilyPropertiesCount;
+    vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyPropertiesCount, nullptr);
+
+    std::vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertiesCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(
+        m_physicalDevice, &queueFamilyPropertiesCount, queueFamilyProperties.data());
+
+    std::uint32_t selectedFamilyIndex;
+    spdlog::info("found {} queue families", queueFamilyProperties.size());
+    for (std::uint32_t i = 0; i < queueFamilyProperties.size(); ++i) {
+        VkQueueFamilyProperties queueFamily = queueFamilyProperties.at(i);
+        if (queueFamily.queueCount > 0) {
+            if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+                selectedFamilyIndex = i;
+                spdlog::info("found graphics capable queue family.");
+                break;
+            }
+        }
+    }
+
+    float priorities[] = { 1.0f };
+    VkDeviceQueueCreateInfo queueCreateInfo = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
+    queueCreateInfo.queueFamilyIndex = selectedFamilyIndex;
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.pQueuePriorities = priorities;
+
+    VkPhysicalDeviceFeatures enabledFeatures = {};
+
+    VkDeviceCreateInfo createInfo = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
+    createInfo.queueCreateInfoCount = 1;
+    createInfo.pQueueCreateInfos = &queueCreateInfo;
+    createInfo.enabledExtensionCount = deviceExtensions.size();
+    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+    createInfo.pEnabledFeatures = &enabledFeatures;
+
+    if (vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) != VK_SUCCESS)
+        spdlog::error("failed to create logical device");
+
+    // Acquire queues
+    m_queue.familyIndex = selectedFamilyIndex;
+    vkGetDeviceQueue(m_device, selectedFamilyIndex, 0, &m_queue.queue);
+}
+
+VulkanContext::~VulkanContext()
+{
+    spdlog::debug("vulkan context cleanup start.");
+    if (vkDeviceWaitIdle(m_device) != VK_SUCCESS)
+        spdlog::error("error while awaiting.");
+    vkDestroyDevice(m_device, nullptr);
+    vkDestroyInstance(m_instace, nullptr);
+    spdlog::debug("vulkan context cleanup finished.");
 }
