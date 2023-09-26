@@ -1,4 +1,6 @@
+#include <memory>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
@@ -42,12 +44,20 @@ int main()
     std::vector<const char*> extensionNames(extensionCount);
     SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, extensionNames.data());
 
-    VulkanContext context(extensionNames, std::vector<const char*>(0));
+    std::vector<const char*> enabledDeviceExtensions;
+    enabledDeviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
-    while (handleMessage()) {
-        // render with vulkan
+    std::shared_ptr<VulkanContext> context = std::make_shared<VulkanContext>(extensionNames, enabledDeviceExtensions);
+    VkSurfaceKHR surface;
+    SDL_Vulkan_CreateSurface(window, context->m_instace, &surface);
+    {
+        VulkanSwapchain swapchain(context, surface, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+
+        while (handleMessage()) {
+            // render with vulkan
+        }
     }
-
+    vkDestroySurfaceKHR(context->m_instace, surface, nullptr);
     SDL_DestroyWindow(window);
     SDL_Quit();
 
